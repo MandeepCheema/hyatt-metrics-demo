@@ -5,7 +5,7 @@ slug: adr
 atlan_guid: c78cde9b-f4c9-482a-8cdc-1a98b2341bb1
 atlan_url: https://home.atlan.com/assets/c78cde9b-f4c9-482a-8cdc-1a98b2341bb1/overview
 description: >-
-  Average daily rate. Room revenue divided by rooms sold. Complimentary and house-use rooms are excluded from rooms sold...
+  Average daily rate. Room revenue divided by rooms sold. Complimentary and house-use rooms are excluded from rooms sold.
 formula: "SUM(room_revenue) / NULLIF(SUM(rooms_sold), 0)"
 grain:
   - property_id
@@ -16,5 +16,5 @@ target_view: ANALYTICS.METRICS.ADR
 owners:
   - mandeep.cheema
 certificate: VERIFIED
-last_changed_by: mandeep.cheema
-last_changed_at: 2026-09-18T13:42:08Z
+last_changed_by: seed
+last_changed_at: 2026-09-18T00:00:00Z

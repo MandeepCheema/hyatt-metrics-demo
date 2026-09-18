@@ -12,19 +12,37 @@ import yaml, requests
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-def announce(base: str, key: str, m: dict, sha: str, run_url: str, post=requests.post) -> None:
+def glossary_anchor(entity: dict) -> dict | None:
+    """Minimal {typeName, guid} ref to the term's glossary; Atlan returns it under relationshipAttributes.anchor."""
+    a = (entity.get("relationshipAttributes") or {}).get("anchor") or (entity.get("attributes") or {}).get("anchor")
+    if not a:
+        return None
+    ref = {"typeName": a.get("typeName", "AtlasGlossary")}
+    if a.get("guid"):
+        ref["guid"] = a["guid"]
+    elif a.get("uniqueAttributes"):
+        ref["uniqueAttributes"] = a["uniqueAttributes"]
+    return ref
+
+
+def announce(base: str, key: str, m: dict, sha: str, run_url: str, post=requests.post, get=requests.get) -> None:
+    """Stamp a deploy announcement on the Atlan term.
+
+    /api/meta/entity/bulk is an upsert, so the term's mandatory attributes (qualifiedName, name, glossary anchor)
+    must travel with the announcement or Atlan answers ATLAS-404-00-007. Read them from the live term first.
+    """
+    hdr = {"Authorization": f"Bearer {key}"}
+    r = get(f"{base}/api/meta/entity/guid/{m['atlan_guid']}", params={"ignoreRelationships": "false"}, headers=hdr, timeout=30)
+    r.raise_for_status()
+    ent = r.json()["entity"]; live = ent.get("attributes") or {}
     body = {"entities": [{"typeName": "AtlasGlossaryTerm", "guid": m["atlan_guid"],
-            "attributes": {"qualifiedName": m.get("atlan_qualified_name") or None,
+            "attributes": {"qualifiedName": live["qualifiedName"], "name": live.get("name") or m.get("name"),
+                           "anchor": glossary_anchor(ent),
                            "announcementType": "information",
                            "announcementTitle": f"Deployed to Snowflake · {sha[:7]}",
                            "announcementMessage": f"{m['target_view']} rebuilt from Git commit {sha[:7]} at "
                                                   f"{dt.datetime.now(dt.UTC):%Y-%m-%d %H:%M} UTC. Run: {run_url}"}}]}
-    # qualifiedName is required by the bulk endpoint; fetch if yaml lacks it
-    if not body["entities"][0]["attributes"]["qualifiedName"]:
-        r = requests.get(f"{base}/api/meta/entity/guid/{m['atlan_guid']}", params={"ignoreRelationships": "true"},
-                         headers={"Authorization": f"Bearer {key}"}, timeout=30); r.raise_for_status()
-        body["entities"][0]["attributes"]["qualifiedName"] = r.json()["entity"]["attributes"]["qualifiedName"]
-    r = post(f"{base}/api/meta/entity/bulk", json=body, headers={"Authorization": f"Bearer {key}"}, timeout=30)
+    r = post(f"{base}/api/meta/entity/bulk", json=body, headers=hdr, timeout=30)
     r.raise_for_status()
 
 def deploy(files: list[pathlib.Path], base: str, key: str, sha: str, run_url: str, announce_fn=announce) -> int:

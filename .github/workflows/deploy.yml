@@ -6,6 +6,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # `production` has a required reviewer: the run pauses at "Review deployments" until approved.
+    environment: production
     permissions: { contents: write }
     steps:
       - uses: actions/checkout@v4

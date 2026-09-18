@@ -1,0 +1,5 @@
+# Governed metric definitions: a Code Owner review is required by the `main` ruleset before merge.
+# PRs are opened by the write-back service as MandeepCheema, who cannot self-approve, so the owner below is the human gate.
+metrics/**  @Mandeepatlan
+ddl/**      @Mandeepatlan
+scripts/**  @Mandeepatlan
