@@ -1,8 +1,8 @@
 {
   "adr": {
     "target_view": "ANALYTICS.METRICS.ADR",
-    "commit": "428b32876a04f32049541fc5784aab9c7abffac4",
-    "deployed_at": "2026-09-18T13:43:58.203791+00:00",
+    "commit": "317d2b985c79207f450c6c17773f1ab647a1b8a9",
+    "deployed_at": "2026-09-18T14:20:08.677537+00:00",
     "atlan_guid": "c78cde9b-f4c9-482a-8cdc-1a98b2341bb1"
   },
   "loyalty_redemption_rate": {
