@@ -20,12 +20,27 @@ jobs:
         run: |
           FILES=$(git diff --name-only HEAD~1 HEAD -- metrics/ | tr '\n' ' ')
           echo "files=$FILES" >> "$GITHUB_OUTPUT"; echo "changed: $FILES"
+      - name: Load current deploy manifest (branch deploy-state)
+        run: |
+          mkdir -p deployed
+          git fetch origin deploy-state:refs/remotes/origin/deploy-state 2>/dev/null \
+            && git show origin/deploy-state:deployed/manifest.json > deployed/manifest.json \
+            || echo "{}" > deployed/manifest.json
       - name: Apply DDL (simulated Snowflake) and post deploy status to Atlan
         env:
           ATLAN_BASE_URL: ${{ secrets.ATLAN_BASE_URL }}
           ATLAN_API_KEY: ${{ secrets.ATLAN_API_KEY }}
         run: python scripts/deploy.py ${{ steps.changed.outputs.files }}
-      - name: Commit deploy manifest
+      - name: Record deploy manifest on branch deploy-state
+        # main is protected (PR + review required) and Actions cannot bypass it on a user-owned repo,
+        # so the "what is live" record lives on its own branch. Read it via `git show deploy-state:deployed/manifest.json`.
         run: |
           git config user.name "metrics-cicd[bot]"; git config user.email "bot@example.com"
-          git add deployed/manifest.json && git commit -m "chore: record deploy ${GITHUB_SHA::7} [skip ci]" && git push || echo "nothing to commit"
+          if git rev-parse --verify origin/deploy-state >/dev/null 2>&1; then
+            git worktree add /tmp/state origin/deploy-state && git -C /tmp/state checkout -q -B deploy-state
+          else
+            git worktree add --orphan -b deploy-state /tmp/state
+          fi
+          mkdir -p /tmp/state/deployed && cp deployed/manifest.json /tmp/state/deployed/manifest.json
+          git -C /tmp/state add -A
+          git -C /tmp/state commit -qm "record deploy ${GITHUB_SHA::7} (main)" && git -C /tmp/state push -q origin deploy-state || echo "nothing to record"
