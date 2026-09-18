@@ -1,0 +1,23 @@
+name: atlan-gate
+on:
+  pull_request:
+    paths: ["metrics/**", "ddl/**"]
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - name: Find changed metric definitions
+        id: changed
+        run: |
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- metrics/ | tr '\n' ' ')
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"; echo "changed: $FILES"
+      - name: Re-check certificate of the governed term in Atlan
+        env:
+          ATLAN_BASE_URL: ${{ secrets.ATLAN_BASE_URL }}
+          ATLAN_API_KEY: ${{ secrets.ATLAN_API_KEY }}
+        run: python scripts/atlan_gate.py ${{ steps.changed.outputs.files }}

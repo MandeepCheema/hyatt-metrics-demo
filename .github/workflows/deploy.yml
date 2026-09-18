@@ -1,0 +1,29 @@
+name: deploy
+on:
+  push:
+    branches: [main]
+    paths: ["metrics/**", "ddl/**"]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - name: Find changed metric definitions
+        id: changed
+        run: |
+          FILES=$(git diff --name-only HEAD~1 HEAD -- metrics/ | tr '\n' ' ')
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"; echo "changed: $FILES"
+      - name: Apply DDL (simulated Snowflake) and post deploy status to Atlan
+        env:
+          ATLAN_BASE_URL: ${{ secrets.ATLAN_BASE_URL }}
+          ATLAN_API_KEY: ${{ secrets.ATLAN_API_KEY }}
+        run: python scripts/deploy.py ${{ steps.changed.outputs.files }}
+      - name: Commit deploy manifest
+        run: |
+          git config user.name "metrics-cicd[bot]"; git config user.email "bot@example.com"
+          git add deployed/manifest.json && git commit -m "chore: record deploy ${GITHUB_SHA::7} [skip ci]" && git push || echo "nothing to commit"

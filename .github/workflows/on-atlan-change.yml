@@ -1,0 +1,26 @@
+name: on-atlan-change
+# Triggered directly by the write-back service via repository_dispatch the moment Atlan applies an approved change.
+# Demonstrates "Atlan triggers a CI/CD job" (deck Q3) without waiting for a PR. Here it runs the validators
+# against the atlan/<slug> branch and annotates the run with who changed what in Atlan.
+on:
+  repository_dispatch:
+    types: [atlan-metric-changed]
+jobs:
+  react:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: atlan/${{ github.event.client_payload.slug }}
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - name: Context from Atlan
+        run: |
+          echo "### Atlan change → CI trigger" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Metric: **${{ github.event.client_payload.name }}** (${{ github.event.client_payload.atlan_url }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Changed by: ${{ github.event.client_payload.changed_by }} at ${{ github.event.client_payload.changed_at }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Fields: ${{ join(github.event.client_payload.changed_fields, ', ') }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- PR: ${{ github.event.client_payload.pr_url }}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Validate the regenerated definition
+        run: python scripts/validate.py metrics/${{ github.event.client_payload.slug }}.yaml

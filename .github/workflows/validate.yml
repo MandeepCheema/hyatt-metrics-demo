@@ -1,0 +1,16 @@
+name: validate
+on:
+  pull_request:
+    paths: ["metrics/**", "ddl/**", "scripts/**"]
+  push:
+    branches: [main]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - name: Validate metric definitions (schema + Snowflake DDL parse + yaml↔sql consistency)
+        run: python scripts/validate.py
